@@ -1,21 +1,20 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    
     <meta charset="UTF-8">
     <title>Lista de Estudiantes</title>
 
-    <!-- jQuery y jQuery UI -->
+    <!-- jQuery and jQuery UI -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
 </head>
 <body>
     <h2>Lista de Estudiantes</h2>
-    <!-- Botón que abre el formulario para agregar un nuevo estudiante -->
-    <button onclick="mostrarFormularioNuevo()">Agregar Estudiante</button>
+    <!-- Button to open the form to add a new student -->
+    <button onclick="editStudent()">Agregar Estudiante</button>
 
-    <!-- Tabla donde se muestran los estudiantes cargados -->
+    <!-- Table that displays the list of students -->
     <table border="1">
         <thead>
             <tr>
@@ -27,22 +26,22 @@
                 <th>Acciones</th>
             </tr>
         </thead>
-        <tbody id="studentTableBody"></tbody> <!-- Contenedor dinámico de filas -->
+        <tbody id="studentTableBody"></tbody> <!-- Dynamic table rows -->
     </table>
 
-    <!-- popUp con formulario de carga/edición de estudiantes -->
+    <!-- Popup form for creating/editing students -->
     <div id="popUp" style="display:none;">
         <form>
-            <!-- Campo oculto para manejar el ID del estudiante -->
+            <!-- Hidden input to store the student ID -->
             <input type="hidden" name="id2">
             <table>
-                <!-- Inputs para los distintos campos del estudiante -->
+                <!-- Inputs for student information -->
                 <tr><td>Apellido:</td><td><input type="text" name="apellido2"></td></tr>
                 <tr><td>Nombre:</td><td><input type="text" name="nombre2"></td></tr>
                 <tr><td>DNI:</td><td><input type="number" name="dni2"></td></tr>
                 <tr><td>Teléfono:</td><td><input type="number" name="telefono2"></td></tr>
                 <tr><td>Aprobada:</td><td><input type="checkbox" name="cursada2"></td></tr>
-                <!-- Botón que guarda el estudiante desde el formulario -->
+                <!-- Button to save the student -->
                 <tr><td colspan="2" style="text-align:center;">
                     <button type="button" onclick="guardarEstudianteDesdeFormulario()">Guardar</button>
                 </td></tr>
@@ -51,14 +50,14 @@
     </div>
 
     <script>
-        // URL base del recurso de estudiantes en MockAPI
+        // Base URL for the MockAPI student resource
         const url = "https://68492edb45f4c0f5ee705756.mockapi.io/api/v1/students";
 
-        // Función que inserta una fila con los datos de un estudiante
+        // Adds a new row in the table with student data
         function insertTr(estudiante) {
             const tbody = document.querySelector("tbody");
             const tr = document.createElement("tr");
-            tr.setAttribute("id", estudiante.id); // Se usa para identificar la fila al editar o borrar
+            tr.setAttribute("id", estudiante.id); // To identify the row for edit/delete
             tr.innerHTML = `
                 <td>${estudiante.apellido || ""}</td>
                 <td>${estudiante.nombre || ""}</td>
@@ -73,22 +72,33 @@
             tbody.appendChild(tr);
         }
 
-        // Función que obtiene todos los estudiantes desde la API y los muestra
-        function RequestStudents() {
+        // Handles the API response and populates the table
+        function handleStudentListLoad(responseText) {
+            const estudiantes = JSON.parse(responseText);
+            const tbody = document.querySelector("tbody");
+            tbody.innerHTML = ""; // Clear table before loading new data
+            estudiantes.forEach(e => insertTr(e)); // Add each student
+        }
+
+        // Load all students from the API
+        function requestStudents() {
             const request = new XMLHttpRequest();
             request.open("GET", url);
             request.onload = function () {
-                const estudiantes = JSON.parse(request.responseText);
-                const tbody = document.querySelector("tbody");
-                tbody.innerHTML = ""; // Limpia tabla antes de volver a cargar
-                estudiantes.forEach(e => insertTr(e)); // Inserta cada estudiante
+                if (request.status >= 200 && request.status < 300) {
+                    handleStudentListLoad(request.responseText);
+                } else {
+                    alert("Error: The API responded with status code " + request.status);
+                }
+            };
+            request.onerror = function () {
+                alert("Error: Could not connect to the API");
             };
             request.send();
         }
 
-        // Abre el formulario con los datos del estudiante seleccionado para editar
-        function editStudent(estudiante) {
-            // Se cargan los valores actuales en el formulario
+        // Opens the form with the selected student data for editing (or empty if creating)
+        function editStudent(estudiante = {}) {
             document.getElementsByName("id2")[0].value = estudiante.id || "";
             document.getElementsByName("apellido2")[0].value = estudiante.apellido || "";
             document.getElementsByName("nombre2")[0].value = estudiante.nombre || "";
@@ -96,33 +106,15 @@
             document.getElementsByName("telefono2")[0].value = estudiante.telefono || "";
             document.getElementsByName("cursada2")[0].checked = estudiante.cursada || false;
 
-            // Se muestra el formulario en un pop-up usando jQuery UI
             $('#popUp').dialog({
                 title: 'Formulario Estudiante',
                 closeText: ''
             }).css('font-size', '15px');
         }
 
-        // Limpia el formulario y lo muestra vacío para ingresar un nuevo estudiante
-        function mostrarFormularioNuevo() {
-            document.getElementsByName("id2")[0].value = "";
-            document.getElementsByName("apellido2")[0].value = "";
-            document.getElementsByName("nombre2")[0].value = "";
-            document.getElementsByName("dni2")[0].value = "";
-            document.getElementsByName("telefono2")[0].value = "";
-            document.getElementsByName("cursada2")[0].checked = false;
-
-            $('#popUp').dialog({
-                title: 'Formulario Estudiante',
-                closeText: ''
-            }).css('font-size', '15px');
-        }
-
-        // Guarda un estudiante desde el formulario, sea nuevo o editado
+        // Collects form data and sends it as POST or PUT depending on ID presence
         function guardarEstudianteDesdeFormulario() {
             const id = document.getElementsByName("id2")[0].value;
-
-            // Recolecta los datos del formulario
             const data = {
                 apellido: document.getElementsByName("apellido2")[0].value,
                 nombre: document.getElementsByName("nombre2")[0].value,
@@ -131,54 +123,74 @@
                 cursada: document.getElementsByName("cursada2")[0].checked
             };
 
-            // Si no hay ID, es un nuevo estudiante (POST)
             if (id === "") {
+                // POST request to create new student
                 const request = new XMLHttpRequest();
                 request.open("POST", url);
                 request.setRequestHeader("Content-Type", "application/json");
                 request.onload = function () {
-                    const nuevo = JSON.parse(request.response);
-                    insertTr(nuevo); // Inserta la nueva fila en la tabla
-                    $('#popUp').dialog('close');
+                    if (request.status >= 200 && request.status < 300) {
+                        const nuevo = JSON.parse(request.responseText);
+                        insertTr(nuevo);
+                        $('#popUp').dialog('close');
+                    } else {
+                        alert("Error: API responded with " + request.status);
+                    }
+                };
+                request.onerror = function () {
+                    alert("Error: Could not send data to the API");
                 };
                 request.send(JSON.stringify(data));
             } else {
-                // Si hay ID, se actualiza el estudiante existente (PUT)
+                // PUT request to update existing student
                 const request = new XMLHttpRequest();
                 request.open("PUT", url + "/" + id);
                 request.setRequestHeader("Content-Type", "application/json");
                 request.onload = function () {
-                    const filas = document.querySelectorAll("tr");
-                    filas.forEach(row => {
-                        if (row.getAttribute("id") === id) {
-                            // Actualiza directamente el contenido de las celdas
-                            row.cells[0].innerHTML = data.apellido;
-                            row.cells[1].innerHTML = data.nombre;
-                            row.cells[2].innerHTML = data.dni;
-                            row.cells[3].innerHTML = data.telefono;
-                            row.cells[4].innerHTML = data.cursada ? "Aprobada" : "Desaprobada";
-                        }
-                    });
-                    $('#popUp').dialog('close');
+                    if (request.status >= 200 && request.status < 300) {
+                        const filas = document.querySelectorAll("tr");
+                        filas.forEach(row => {
+                            if (row.getAttribute("id") === id) {
+                                row.cells[0].innerHTML = data.apellido;
+                                row.cells[1].innerHTML = data.nombre;
+                                row.cells[2].innerHTML = data.dni;
+                                row.cells[3].innerHTML = data.telefono;
+                                row.cells[4].innerHTML = data.cursada ? "Aprobada" : "Desaprobada";
+                            }
+                        });
+                        $('#popUp').dialog('close');
+                    } else {
+                        alert("Error: API responded with " + request.status);
+                    }
+                };
+                request.onerror = function () {
+                    alert("Error: Could not update student in the API");
                 };
                 request.send(JSON.stringify(data));
             }
         }
 
-        // Elimina un estudiante seleccionado de la API y de la tabla
+        // Deletes the student from API and removes row from table
         function deleteStudent(estudiante) {
             const request = new XMLHttpRequest();
             request.open("DELETE", url + "/" + estudiante.id);
             request.onload = function () {
-                const row = document.getElementById(estudiante.id);
-                if (row) row.remove(); // Elimina la fila del DOM
+                if (request.status >= 200 && request.status < 300) {
+                    const row = document.getElementById(estudiante.id);
+                    if (row) row.remove();
+                } else {
+                    alert("Error: API responded with " + request.status);
+                }
+            };
+            request.onerror = function () {
+                alert("Error: Could not delete student from the API");
             };
             request.send();
         }
 
-        // Se ejecuta al cargar la página y obtiene los datos iniciales
+        // When the page loads, start by loading the list of students
         document.addEventListener("DOMContentLoaded", function () {
-            RequestStudents(); // Carga inicial de estudiantes
+            requestStudents();
         });
     </script>
 </body>
